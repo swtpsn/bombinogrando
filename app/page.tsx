@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { levels } from "./data/levels";
+import { useEffect } from "react";
+import { supabase } from "../lib/supabase";
+
+type Level = {
+  question: string;
+  options: string[];
+  correctAnswer: string;
+  successMessage: string;
+};
 
 export default function Home() {
   const [levelIndex, setLevelIndex] = useState<number>(0);
@@ -9,8 +17,51 @@ export default function Home() {
   const [resultMessage, setResultMessage] = useState<string>("");
   const [isLevelComplete, setIsLevelComplete] = useState<boolean>(false);
 
+  const [levels, setLevels] = useState<Level[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   const currentLevel = levels[levelIndex];
   const isDemoCompleted = levelIndex >= levels.length;
+
+  useEffect(() => {
+    async function loadLevels() {
+      const { data, error } = await supabase
+        .from("levels")
+        .select("*")
+        .order("id");
+  
+      if (error) {
+        console.error(error);
+        setLoading(false);
+        return;
+      }
+  
+      const formattedLevels: Level[] = (data || []).map((level) => ({
+        question: level.question,
+        options: [
+          level.option_1,
+          level.option_2,
+          level.option_3,
+          level.option_4,
+        ],
+        correctAnswer: level.correct_answer,
+        successMessage: level.success_message,
+      }));
+  
+      setLevels(formattedLevels);
+      setLoading(false);
+    }
+  
+    loadLevels();
+  }, []);
+
+if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        Loading levels...
+      </main>
+    );
+  }
 
   const handleCheckAnswer = () => {
     if (!currentLevel) {
