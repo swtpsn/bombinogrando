@@ -82,17 +82,19 @@ export default function RegisterPage() {
       errors.push(error.message);
     }
 
-    if (!data.user || data.user.identities?.length === 0) {
+    const createdUser = data.user;
+
+    if (!createdUser || createdUser.identities?.length === 0) {
       errors.push("This email is already registered.");
     }
 
-    if (errors.length > 0) {
+    if (errors.length > 0 || !createdUser) {
       setMessages(errors);
       return;
     }
 
     const { error: profileError } = await supabase.from("profiles").insert({
-      id: data.user.id,
+      id: createdUser.id,
       nickname: cleanNickname,
     });
 
@@ -107,7 +109,7 @@ export default function RegisterPage() {
     }
 
     const { error: statsError } = await supabase.from("user_stats").insert({
-      user_id: data.user.id,
+      user_id: createdUser.id,
     });
 
     if (statsError) {
