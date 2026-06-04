@@ -40,6 +40,11 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [questions, setQuestions] = useState<ExistingQuestion[]>([]);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalQuestions, setTotalQuestions] = useState(0);
+
+  const questionsPerPage = 30;
+
   const [categoryId, setCategoryId] = useState("");
   const [question, setQuestion] = useState("");
   const [correctAnswer, setCorrectAnswer] = useState("");
@@ -60,20 +65,27 @@ export default function AdminPage() {
     useState<ExistingQuestion | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
-  async function loadQuestions() {
-    const { data, error } = await supabase
-      .from("levels_v2")
-      .select("id, category_id, title, explanation, is_active, data")
-      .order("id", { ascending: false })
-      .limit(30);
+  async function loadQuestions(page = currentPage) {
+  const from = (page - 1) * questionsPerPage;
+  const to = from + questionsPerPage - 1;
 
-    if (error) {
-      console.error(error);
-      setMessage(error.message);
-      return;
-    }
+  const { data, error, count } = await supabase
+    .from("levels_v2")
+    .select("id, category_id, title, explanation, is_active, data", {
+      count: "exact",
+    })
+    .order("id", { ascending: false })
+    .range(from, to);
 
-    setQuestions(data || []);
+  if (error) {
+    console.error(error);
+    setMessage(error.message);
+    return;
+  }
+
+  setQuestions(data || []);
+  setTotalQuestions(count || 0);
+  setCurrentPage(page);
   }
 
   useEffect(() => {
@@ -180,7 +192,7 @@ export default function AdminPage() {
     setOption3("");
     setOption4("");
 
-    await loadQuestions();
+    await loadQuestions(1);
 
     setMessage("Question created.");
     setIsCreating(false);
@@ -282,7 +294,7 @@ export default function AdminPage() {
     }
 
     setBulkJson("");
-    await loadQuestions();
+    await loadQuestions(1);
 
     setMessage(`Imported ${rows.length} questions.`);
     setIsImporting(false);
@@ -396,7 +408,7 @@ export default function AdminPage() {
       </main>
     );
   }
-
+  
   if (!isAdmin) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
@@ -404,6 +416,11 @@ export default function AdminPage() {
       </main>
     );
   }
+  
+  const totalPages = Math.max(
+    1,
+    Math.ceil(totalQuestions / questionsPerPage)
+  );
 
   return (
     <main className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
@@ -535,6 +552,28 @@ export default function AdminPage() {
           onArchiveQuestion={handleArchiveQuestion}
           onRestoreQuestion={handleRestoreQuestion}
         />
+
+        <div className="mt-6 flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <button
+            onClick={() => loadQuestions(currentPage - 1)}
+            disabled={currentPage <= 1}
+            className="rounded-xl border border-zinc-700 px-4 py-2 font-bold text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            ← Previous
+          </button>
+
+          <p className="text-sm text-zinc-400">
+            Page {currentPage} of {totalPages} · {totalQuestions} questions
+          </p>
+
+          <button
+            onClick={() => loadQuestions(currentPage + 1)}
+            disabled={currentPage >= totalPages}
+            className="rounded-xl border border-zinc-700 px-4 py-2 font-bold text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next →
+          </button>
+        </div>
 
         {message && (
           <p className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-zinc-300">
