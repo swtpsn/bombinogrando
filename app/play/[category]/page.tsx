@@ -110,6 +110,7 @@ export default function PlayPage({
           .from("levels_v2")
           .select("*")
           .eq("category_id", categoryData.id)
+          .eq("is_active", true)
           .order("id");
 
       if (levelsError) {

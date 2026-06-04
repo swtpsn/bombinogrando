@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import QuestionsList from "../../components/admin/QuestionsList";
+import QuestionEditor from "../../components/admin/QuestionEditor";
 
 type Category = {
   id: number;
@@ -55,6 +56,9 @@ export default function AdminPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState<number | null>(null);
+  const [editingQuestion, setEditingQuestion] =
+    useState<ExistingQuestion | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   async function loadQuestions() {
     const { data, error } = await supabase
@@ -284,29 +288,105 @@ export default function AdminPage() {
     setIsImporting(false);
   }
 
-  async function handleDeleteQuestion(questionId: number) {
-    const confirmed = window.confirm("Delete this question?");
+  async function handleArchiveQuestion(questionId: number) {
+    const confirmed = window.confirm("Archive this question?");
     if (!confirmed) return;
-
+  
     setIsDeletingId(questionId);
-    setMessage("Deleting question...");
-
+    setMessage("Archiving question...");
+  
     const { error } = await supabase
       .from("levels_v2")
-      .delete()
+      .update({ is_active: false })
       .eq("id", questionId);
-
+  
     if (error) {
       console.error(error);
       setMessage(error.message);
       setIsDeletingId(null);
       return;
     }
-
+  
     await loadQuestions();
-
-    setMessage("Question deleted.");
+  
+    setMessage("Question archived.");
     setIsDeletingId(null);
+  }
+  
+  async function handleRestoreQuestion(questionId: number) {
+    setIsDeletingId(questionId);
+    setMessage("Restoring question...");
+  
+    const { error } = await supabase
+      .from("levels_v2")
+      .update({ is_active: true })
+      .eq("id", questionId);
+  
+    if (error) {
+      console.error(error);
+      setMessage(error.message);
+      setIsDeletingId(null);
+      return;
+    }
+  
+    await loadQuestions();
+  
+    setMessage("Question restored.");
+    setIsDeletingId(null);
+  }
+
+  async function handleSaveEditedQuestion(updatedQuestion: {
+    id: number;
+    question: string;
+    options: string[];
+    correct: string;
+    explanation: string;
+  }) {
+    if (isSavingEdit) return;
+  
+    if (
+      !updatedQuestion.question ||
+      !updatedQuestion.correct ||
+      !updatedQuestion.explanation ||
+      updatedQuestion.options.some((option) => !option)
+    ) {
+      setMessage("Fill all edit fields.");
+      return;
+    }
+  
+    if (!updatedQuestion.options.includes(updatedQuestion.correct)) {
+      setMessage("Correct answer must match one of the options exactly.");
+      return;
+    }
+  
+    setIsSavingEdit(true);
+    setMessage("Saving question...");
+  
+    const { error } = await supabase
+      .from("levels_v2")
+      .update({
+        title: updatedQuestion.question,
+        explanation: updatedQuestion.explanation,
+        data: {
+          question: updatedQuestion.question,
+          options: updatedQuestion.options,
+          correct: updatedQuestion.correct,
+        },
+      })
+      .eq("id", updatedQuestion.id);
+  
+    if (error) {
+      console.error(error);
+      setMessage(error.message);
+      setIsSavingEdit(false);
+      return;
+    }
+  
+    await loadQuestions();
+  
+    setEditingQuestion(null);
+    setMessage("Question updated.");
+    setIsSavingEdit(false);
   }
 
   if (loading) {
@@ -438,11 +518,22 @@ export default function AdminPage() {
           </button>
         </div>
         
+        {editingQuestion && (
+          <QuestionEditor
+            question={editingQuestion}
+            isSaving={isSavingEdit}
+            onCancel={() => setEditingQuestion(null)}
+            onSave={handleSaveEditedQuestion}
+          />
+        )}
+
         <QuestionsList
           questions={questions}
           categories={categories}
           isDeletingId={isDeletingId}
-          onDeleteQuestion={handleDeleteQuestion}
+          onEditQuestion={setEditingQuestion}
+          onArchiveQuestion={handleArchiveQuestion}
+          onRestoreQuestion={handleRestoreQuestion}
         />
 
         {message && (
