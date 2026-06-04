@@ -64,16 +64,16 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-4 text-sm font-medium">
-          <Link href="/categories" className="text-zinc-300 hover:text-white">
-            Categories
-          </Link>
-
-          <Link href="/leaderboard" className="text-zinc-300 hover:text-white">
-            Leaderboard
-          </Link>
-
           {!loadingAuth && isLoggedIn ? (
             <>
+              <Link href="/categories" className="text-zinc-300 hover:text-white">
+                Categories
+              </Link>
+
+              <Link href="/leaderboard" className="text-zinc-300 hover:text-white">
+                Leaderboard
+              </Link>
+
               {isAdmin && (
                 <Link href="/admin" className="text-yellow-300 hover:text-yellow-200">
                   Admin

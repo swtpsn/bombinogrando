@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 
@@ -28,6 +29,7 @@ export default function PlayPage({
 }: {
   params: Promise<{ category: string }>;
 }) {
+  const router = useRouter();
   const [levels, setLevels] = useState<Level[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryName, setCategoryName] = useState("");
@@ -52,6 +54,15 @@ export default function PlayPage({
 
   useEffect(() => {
     async function loadLevels() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+    
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+    
       const { category } = await params;
 
       const { data: categoryData, error: categoryError } =
@@ -70,15 +81,6 @@ export default function PlayPage({
       setCategoryName(categoryData.name);
 
       if (categoryData.is_premium) {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) {
-          setAccessDenied(true);
-          setLoading(false);
-          return;
-        }
 
         const { data: profileData, error: profileError } =
           await supabase
@@ -124,7 +126,7 @@ export default function PlayPage({
     }
 
     loadLevels();
-  }, [params]);
+  }, [params, router]);
 
   useEffect(() => {
     if (!levels[currentIndex]) {

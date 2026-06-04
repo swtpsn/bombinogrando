@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 
@@ -27,6 +28,8 @@ const categoryEmoji: Record<string, string> = {
 };
 
 export default function CategoriesPage() {
+  const router = useRouter();
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +40,25 @@ export default function CategoriesPage() {
 
   useEffect(() => {
     async function loadData() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("role, is_premium")
+        .eq("id", user.id)
+        .single();
+
+      if (profileData) {
+        setProfile(profileData);
+      }
+
       const { data: categoriesData, error: categoriesError } = await supabase
         .from("categories")
         .select("*")
@@ -50,28 +72,11 @@ export default function CategoriesPage() {
       }
 
       setCategories(categoriesData || []);
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("role, is_premium")
-          .eq("id", user.id)
-          .single();
-
-        if (profileData) {
-          setProfile(profileData);
-        }
-      }
-
       setLoading(false);
     }
 
     loadData();
-  }, []);
+  }, [router]);
 
   if (loading) {
     return (
@@ -108,8 +113,7 @@ export default function CategoriesPage() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {categories.map((category) => {
-            const isLocked =
-              category.is_premium && !hasPremiumAccess;
+            const isLocked = category.is_premium && !hasPremiumAccess;
 
             const cardContent = (
               <>
