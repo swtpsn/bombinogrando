@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import QuestionsList from "../../components/admin/QuestionsList";
 import QuestionEditor from "../../components/admin/QuestionEditor";
+import CategoriesManager from "../../components/admin/CategoriesManager";
 
 type Category = {
   id: number;
   name: string;
   slug: string;
+  is_premium: boolean;
 };
 
 type BulkQuestion = {
@@ -65,6 +67,8 @@ export default function AdminPage() {
     useState<ExistingQuestion | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+
   async function loadQuestions(page = currentPage) {
   const from = (page - 1) * questionsPerPage;
   const to = from + questionsPerPage - 1;
@@ -114,7 +118,7 @@ export default function AdminPage() {
 
       const { data: categoriesData } = await supabase
         .from("categories")
-        .select("id, name, slug")
+        .select("id, name, slug, is_premium")
         .order("name");
 
       setCategories(categoriesData || []);
@@ -196,6 +200,43 @@ export default function AdminPage() {
 
     setMessage("Question created.");
     setIsCreating(false);
+  }
+
+  async function handleCreateCategory(category: {
+    name: string;
+    slug: string;
+    is_premium: boolean;
+  }) {
+    if (isCreatingCategory) return;
+  
+    if (!category.name || !category.slug) {
+      setMessage("Category name and slug are required.");
+      return;
+    }
+  
+    setIsCreatingCategory(true);
+    setMessage("Creating category...");
+  
+    const { error } = await supabase
+      .from("categories")
+      .insert(category);
+  
+    if (error) {
+      console.error(error);
+      setMessage(error.message);
+      setIsCreatingCategory(false);
+      return;
+    }
+  
+    const { data: categoriesData } = await supabase
+      .from("categories")
+      .select("id, name, slug, is_premium")
+      .order("name");
+  
+    setCategories(categoriesData || []);
+  
+    setMessage("Category created.");
+    setIsCreatingCategory(false);
   }
 
   async function handleBulkImport() {
@@ -426,6 +467,14 @@ export default function AdminPage() {
     <main className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
       <section className="mx-auto max-w-4xl">
         <h1 className="mb-8 text-4xl font-black">Admin Panel</h1>
+
+        <div className="mb-8">
+        <CategoriesManager
+          categories={categories}
+          onCreateCategory={handleCreateCategory}
+          isCreatingCategory={isCreatingCategory}
+        />
+        </div>
 
         <div className="mb-8 rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
           <h2 className="mb-6 text-2xl font-bold">Bulk Import JSON</h2>
