@@ -155,13 +155,28 @@ export default function CategoriesPage() {
             }
 
             return (
-              <Link
+              <div
                 key={category.id}
-                href={`/play/${category.slug}`}
-                className="group rounded-2xl border border-zinc-800 bg-zinc-900 p-5 shadow-sm transition hover:-translate-y-1 hover:border-zinc-600 hover:bg-zinc-900/80"
+                className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 shadow-sm transition hover:border-zinc-600 hover:bg-zinc-900/80"
               >
                 {cardContent}
-              </Link>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <Link
+                    href={`/play/${category.slug}`}
+                    className="rounded-xl border border-zinc-700 px-4 py-3 text-center text-sm font-bold text-zinc-200 hover:border-zinc-500"
+                  >
+                    Classic
+                  </Link>
+
+                  <Link
+                    href={`/infinite/${category.slug}`}
+                    className="rounded-xl bg-white px-4 py-3 text-center text-sm font-bold text-zinc-950 hover:bg-zinc-200"
+                  >
+                    Infinite
+                  </Link>
+                </div>
+              </div>
             );
           })}
         </div>
