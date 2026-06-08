@@ -5,10 +5,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
+type Option = {
+  id: string;
+  text: string;
+};
+
 type Question = {
   id: number;
   question: string;
-  options: string[];
+  options: Option[];
 };
 
 type FinishType = "lost" | "completed" | null;
@@ -24,7 +29,7 @@ export default function InfinitePage({
   const [question, setQuestion] = useState<Question | null>(null);
   const [runId, setRunId] = useState<number | null>(null);
 
-  const [selectedOption, setSelectedOption] = useState("");
+  const [selectedOptionId, setSelectedOptionId] = useState("");
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
 
@@ -80,25 +85,25 @@ export default function InfinitePage({
   }, [params, router]);
 
   async function sendAnswerRequest(accessToken: string) {
-  if (!runId) {
-    throw new Error("No active run.");
+    if (!runId) {
+      throw new Error("No active run.");
+    }
+
+    return fetch("/api/infinite/answer", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        runId,
+        selectedOptionId,
+      }),
+    });
   }
 
-  return fetch("/api/infinite/answer", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({
-      runId,
-      selectedOption,
-    }),
-  });
-}
-
   async function handleAnswer() {
-    if (!question || !selectedOption || checkingAnswer || gameOver) {
+    if (!question || !selectedOptionId || checkingAnswer || gameOver) {
       return;
     }
 
@@ -170,7 +175,7 @@ export default function InfinitePage({
       }
 
       setQuestion(data.nextQuestion);
-      setSelectedOption("");
+      setSelectedOptionId("");
       setExplanation(data.explanation || "");
       setMessage("Correct!");
       setCheckingAnswer(false);
@@ -304,12 +309,12 @@ export default function InfinitePage({
 
             <div className="grid gap-3">
               {question?.options.map((option) => {
-                const isSelected = selectedOption === option;
+                const isSelected = selectedOptionId === option.id;
 
                 return (
                   <button
-                    key={option}
-                    onClick={() => setSelectedOption(option)}
+                    key={option.id}
+                    onClick={() => setSelectedOptionId(option.id)}
                     disabled={checkingAnswer}
                     className={`rounded-2xl border p-4 text-left text-lg font-semibold transition ${
                       isSelected
@@ -317,7 +322,7 @@ export default function InfinitePage({
                         : "border-zinc-700 bg-zinc-950 text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800"
                     } disabled:cursor-not-allowed disabled:opacity-60`}
                   >
-                    {option}
+                    {option.text}
                   </button>
                 );
               })}
@@ -325,7 +330,7 @@ export default function InfinitePage({
 
             <button
               onClick={handleAnswer}
-              disabled={!selectedOption || checkingAnswer}
+              disabled={!selectedOptionId || checkingAnswer}
               className="mt-6 w-full rounded-2xl bg-white px-5 py-4 font-bold text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
             >
               {checkingAnswer ? "Checking..." : "Check answer"}

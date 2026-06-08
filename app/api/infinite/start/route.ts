@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 import {
+  getLocalizedQuestion,
+  getPreferredLocale,
   pickAvailableQuestion,
   shuffleArray,
 } from "../../../../lib/infiniteGame";
@@ -48,7 +50,7 @@ export async function POST(request: NextRequest) {
 
   const { data: profile, error: profileError } = await supabaseAdmin
     .from("profiles")
-    .select("role, is_premium, allow_question_repeats")
+    .select("role, is_premium, allow_question_repeats, preferred_locale")
     .eq("id", user.id)
     .single();
 
@@ -72,6 +74,9 @@ export async function POST(request: NextRequest) {
   const allowQuestionRepeats =
     profile.allow_question_repeats === true;
 
+  const locale =
+    profile.preferred_locale || (await getPreferredLocale(user.id));
+
   try {
     const selectedLevel = await pickAvailableQuestion({
       userId: user.id,
@@ -85,6 +90,11 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const localizedQuestion = await getLocalizedQuestion({
+      level: selectedLevel,
+      locale,
+    });
 
     const { data: run, error: runError } = await supabaseAdmin
       .from("game_runs")
@@ -107,15 +117,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       runId: run.id,
+      locale,
       category: {
         id: category.id,
         name: category.name,
         slug: category.slug,
       },
       question: {
-        id: selectedLevel.id,
-        question: selectedLevel.data.question,
-        options: shuffleArray(selectedLevel.data.options),
+        id: localizedQuestion.levelId,
+        question: localizedQuestion.question,
+        options: shuffleArray(localizedQuestion.options),
       },
       streak: 0,
       repeatsAllowed: allowQuestionRepeats,

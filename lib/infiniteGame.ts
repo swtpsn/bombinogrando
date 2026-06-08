@@ -13,6 +13,28 @@ export type Level = {
   data: LevelData;
 };
 
+export type LocalizedOption = {
+  id: string;
+  text: string;
+};
+
+export type LocalizedQuestion = {
+  levelId: number;
+  question: string;
+  options: LocalizedOption[];
+  correctOptionId: string;
+  explanation: string;
+};
+
+type LevelTranslation = {
+  level_id: number;
+  locale: string;
+  question: string;
+  options: LocalizedOption[];
+  correct_option_id: string;
+  explanation: string;
+};
+
 export function shuffleArray<T>(items: T[]) {
   return [...items].sort(() => Math.random() - 0.5);
 }
@@ -49,6 +71,65 @@ export async function markQuestionAsSeen(
   if (error) {
     throw new Error(error.message);
   }
+}
+
+export async function getPreferredLocale(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("preferred_locale")
+    .eq("id", userId)
+    .single();
+
+  if (error || !data?.preferred_locale) {
+    return "ru";
+  }
+
+  return data.preferred_locale;
+}
+
+export async function getLocalizedQuestion({
+  level,
+  locale,
+}: {
+  level: Level;
+  locale: string;
+}): Promise<LocalizedQuestion> {
+  const { data: translation } = await supabaseAdmin
+    .from("level_translations")
+    .select("level_id, locale, question, options, correct_option_id, explanation")
+    .eq("level_id", level.id)
+    .eq("locale", locale)
+    .single();
+
+  if (translation) {
+    const localized = translation as LevelTranslation;
+
+    return {
+      levelId: level.id,
+      question: localized.question,
+      options: localized.options,
+      correctOptionId: localized.correct_option_id,
+      explanation: localized.explanation,
+    };
+  }
+
+  const fallbackOptions = level.data.options.map((text, index) => ({
+    id: `option_${index + 1}`,
+    text,
+  }));
+
+  const correctIndex = level.data.options.findIndex(
+    (option) => option === level.data.correct
+  );
+
+  return {
+    levelId: level.id,
+    question: level.data.question,
+    options: fallbackOptions,
+    correctOptionId:
+      correctIndex >= 0 ? `option_${correctIndex + 1}` : "unknown",
+    explanation: level.explanation || "",
+  };
 }
 
 export async function pickAvailableQuestion({

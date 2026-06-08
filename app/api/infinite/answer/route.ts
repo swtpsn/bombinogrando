@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  getLocalizedQuestion,
   getRun,
   pickAvailableQuestion,
   shuffleArray,
@@ -101,11 +102,11 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
 
   const runId = body.runId;
-  const selectedOption = body.selectedOption;
+  const selectedOptionId = body.selectedOptionId;
 
-  if (!runId || !selectedOption) {
+  if (!runId || !selectedOptionId) {
     return NextResponse.json(
-      { error: "runId and selectedOption are required" },
+      { error: "runId and selectedOptionId are required" },
       { status: 400 }
     );
   }
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("allow_question_repeats")
+      .select("allow_question_repeats, preferred_locale")
       .eq("id", user.id)
       .single();
 
@@ -149,6 +150,8 @@ export async function POST(request: NextRequest) {
 
     const allowQuestionRepeats =
       profile.allow_question_repeats === true;
+
+    const locale = profile.preferred_locale || "ru";
 
     const { data: currentLevel, error: levelError } = await supabaseAdmin
       .from("levels_v2")
@@ -165,7 +168,14 @@ export async function POST(request: NextRequest) {
     }
 
     const level = currentLevel as Level;
-    const isCorrect = selectedOption === level.data.correct;
+
+    const localizedQuestion = await getLocalizedQuestion({
+      level,
+      locale,
+    });
+
+    const isCorrect =
+      selectedOptionId === localizedQuestion.correctOptionId;
 
     if (!isCorrect) {
       await updateRun(Number(runId), {
@@ -180,22 +190,21 @@ export async function POST(request: NextRequest) {
       });
 
       await updateCategoryStats({
-
         userId: user.id,
-
         categoryId: level.category_id,
-
         isCorrect: false,
-
         streak: run.streak,
-
       });
+
+      const correctOption = localizedQuestion.options.find(
+        (option) => option.id === localizedQuestion.correctOptionId
+      );
 
       return NextResponse.json({
         isCorrect: false,
         gameOver: true,
-        correctAnswer: level.data.correct,
-        explanation: level.explanation,
+        correctAnswer: correctOption?.text || "",
+        explanation: localizedQuestion.explanation,
         finalStreak: run.streak,
       });
     }
@@ -203,15 +212,10 @@ export async function POST(request: NextRequest) {
     const newStreak = run.streak + 1;
 
     await updateCategoryStats({
-
       userId: user.id,
-
       categoryId: level.category_id,
-
       isCorrect: true,
-
       streak: newStreak,
-
     });
 
     await updateUserStatsAfterCorrectAnswer(user.id);
@@ -239,11 +243,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         isCorrect: true,
         gameOver: true,
-        explanation: level.explanation,
+        explanation: localizedQuestion.explanation,
         finalStreak: newStreak,
         message: "No more unseen questions in this category.",
       });
     }
+
+    const localizedNextQuestion = await getLocalizedQuestion({
+      level: nextLevel,
+      locale,
+    });
 
     await updateRun(Number(runId), {
       streak: newStreak,
@@ -254,12 +263,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       isCorrect: true,
       gameOver: false,
-      explanation: level.explanation,
+      explanation: localizedQuestion.explanation,
       streak: newStreak,
       nextQuestion: {
-        id: nextLevel.id,
-        question: nextLevel.data.question,
-        options: shuffleArray(nextLevel.data.options),
+        id: localizedNextQuestion.levelId,
+        question: localizedNextQuestion.question,
+        options: shuffleArray(localizedNextQuestion.options),
       },
     });
   } catch (error) {
