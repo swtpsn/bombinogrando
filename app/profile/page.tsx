@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 
 type UserStats = {
@@ -17,9 +17,26 @@ type Profile = {
   can_change_nickname: boolean;
 };
 
+type Category = {
+  id: number;
+  name: string;
+  slug: string;
+};
+
+type CategoryStats = {
+  id: number;
+  user_id: string;
+  category_id: number;
+  correct_answers: number;
+  wrong_answers: number;
+  best_streak: number;
+};
+
 export default function ProfilePage() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [categoryStats, setCategoryStats] = useState<CategoryStats[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
@@ -32,6 +49,31 @@ export default function ProfilePage() {
     profile?.role === "admin" ||
     profile?.is_premium === true ||
     profile?.can_change_nickname === true;
+
+  const totalAnswers =
+    (stats?.total_correct || 0) + (stats?.total_wrong || 0);
+
+  const accuracy =
+    totalAnswers > 0
+      ? Math.round(((stats?.total_correct || 0) / totalAnswers) * 100)
+      : 0;
+
+  const favoriteCategory = useMemo(() => {
+    if (categoryStats.length === 0) return null;
+
+    const sorted = [...categoryStats].sort((a, b) => {
+      const aTotal = a.correct_answers + a.wrong_answers;
+      const bTotal = b.correct_answers + b.wrong_answers;
+      return bTotal - aTotal;
+    });
+
+    return sorted[0];
+  }, [categoryStats]);
+
+  function getCategoryName(categoryId: number) {
+    const category = categories.find((item) => item.id === categoryId);
+    return category?.name || "Unknown category";
+  }
 
   useEffect(() => {
     async function loadProfile() {
@@ -76,6 +118,27 @@ export default function ProfilePage() {
       }
 
       setStats(statsData);
+
+      const { data: categoriesData } = await supabase
+        .from("categories")
+        .select("id, name, slug")
+        .order("name");
+
+      setCategories(categoriesData || []);
+
+      const { data: categoryStatsData, error: categoryStatsError } =
+        await supabase
+          .from("user_category_stats")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("best_streak", { ascending: false });
+
+      if (categoryStatsError) {
+        console.error(categoryStatsError);
+      } else {
+        setCategoryStats(categoryStatsData || []);
+      }
+
       setLoading(false);
     }
 
@@ -83,9 +146,7 @@ export default function ProfilePage() {
   }, []);
 
   async function handleSaveNickname() {
-    if (!userId || !profile) {
-      return;
-    }
+    if (!userId || !profile) return;
 
     if (!canEditNickname) {
       setMessage("You do not have permission to change your nickname.");
@@ -182,7 +243,7 @@ export default function ProfilePage() {
 
   return (
     <main className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
-      <section className="mx-auto max-w-3xl">
+      <section className="mx-auto max-w-4xl">
         <div className="mb-8">
           <p className="mb-2 text-sm font-medium uppercase tracking-widest text-zinc-500">
             Player profile
@@ -245,7 +306,7 @@ export default function ProfilePage() {
           {message && <p className="mt-3 text-sm text-zinc-400">{message}</p>}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
             <p className="text-4xl font-black text-emerald-300">
               {stats.total_correct}
@@ -273,6 +334,107 @@ export default function ProfilePage() {
             </p>
             <p className="mt-2 text-zinc-400">Games played</p>
           </div>
+
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
+            <p className="text-4xl font-black text-purple-300">
+              {totalAnswers}
+            </p>
+            <p className="mt-2 text-zinc-400">Total answers</p>
+          </div>
+
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
+            <p className="text-4xl font-black text-cyan-300">
+              {accuracy}%
+            </p>
+            <p className="mt-2 text-zinc-400">Accuracy</p>
+          </div>
+        </div>
+
+        <div className="mb-8 rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
+          <h2 className="mb-4 text-2xl font-bold">Highlights</h2>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+              <p className="text-sm text-zinc-500">Favorite category</p>
+              <p className="mt-2 text-2xl font-black">
+                {favoriteCategory
+                  ? getCategoryName(favoriteCategory.category_id)
+                  : "Not enough data"}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+              <p className="text-sm text-zinc-500">Best category streak</p>
+              <p className="mt-2 text-2xl font-black text-yellow-300">
+                {categoryStats.length > 0
+                  ? Math.max(...categoryStats.map((item) => item.best_streak))
+                  : 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
+          <h2 className="mb-6 text-2xl font-bold">Category stats</h2>
+
+          {categoryStats.length === 0 ? (
+            <p className="text-zinc-400">
+              No category stats yet. Play Infinite Mode to collect data.
+            </p>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {categoryStats.map((item) => {
+                const categoryTotal =
+                  item.correct_answers + item.wrong_answers;
+
+                const categoryAccuracy =
+                  categoryTotal > 0
+                    ? Math.round((item.correct_answers / categoryTotal) * 100)
+                    : 0;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5"
+                  >
+                    <h3 className="text-xl font-bold">
+                      {getCategoryName(item.category_id)}
+                    </h3>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-zinc-500">Correct</p>
+                        <p className="text-lg font-bold text-emerald-300">
+                          {item.correct_answers}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-zinc-500">Wrong</p>
+                        <p className="text-lg font-bold text-red-300">
+                          {item.wrong_answers}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-zinc-500">Best streak</p>
+                        <p className="text-lg font-bold text-yellow-300">
+                          {item.best_streak}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-zinc-500">Accuracy</p>
+                        <p className="text-lg font-bold text-cyan-300">
+                          {categoryAccuracy}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
     </main>

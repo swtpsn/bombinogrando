@@ -6,6 +6,7 @@ import {
   updateRun,
 } from "../../../../lib/infiniteGame";
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
+import { updateCategoryStats } from "../../../../lib/categoryStats";
 
 type LevelData = {
   question: string;
@@ -178,6 +179,18 @@ export async function POST(request: NextRequest) {
         addWrongAnswer: true,
       });
 
+      await updateCategoryStats({
+
+        userId: user.id,
+
+        categoryId: level.category_id,
+
+        isCorrect: false,
+
+        streak: run.streak,
+
+      });
+
       return NextResponse.json({
         isCorrect: false,
         gameOver: true,
@@ -188,6 +201,18 @@ export async function POST(request: NextRequest) {
     }
 
     const newStreak = run.streak + 1;
+
+    await updateCategoryStats({
+
+      userId: user.id,
+
+      categoryId: level.category_id,
+
+      isCorrect: true,
+
+      streak: newStreak,
+
+    });
 
     await updateUserStatsAfterCorrectAnswer(user.id);
 
