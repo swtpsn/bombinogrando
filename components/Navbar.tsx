@@ -157,6 +157,10 @@ export default function Navbar() {
                   {t.nav.categories}
                 </Link>
 
+                <Link href="/daily" className="text-zinc-300 hover:text-white">
+                  Дейлик
+                </Link>
+
                 <Link href="/leaderboard" className="text-zinc-300 hover:text-white">
                   {t.nav.leaderboard}
                 </Link>
@@ -209,6 +213,14 @@ export default function Navbar() {
                   className="rounded-xl px-3 py-3 text-zinc-300 hover:bg-zinc-900 hover:text-white"
                 >
                   {t.nav.categories}
+                </Link>
+
+                <Link
+                  href="/daily"
+                  onClick={closeMenu}
+                  className="rounded-xl px-3 py-3 text-zinc-300 hover:bg-zinc-900 hover:text-white"
+                >
+                  Дейлик
                 </Link>
 
                 <Link
