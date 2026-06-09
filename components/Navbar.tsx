@@ -6,14 +6,21 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import { getDictionary } from "../lib/i18n/getDictionary";
 
+type Profile = {
+  role: string;
+  preferred_locale: string;
+};
+
 export default function Navbar() {
   const router = useRouter();
-  const t = getDictionary("ru");
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [locale, setLocale] = useState("ru");
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const t = getDictionary(locale);
 
   async function loadUserAndRole() {
     const {
@@ -24,17 +31,21 @@ export default function Navbar() {
 
     if (!user) {
       setIsAdmin(false);
+      setLocale("ru");
       setLoadingAuth(false);
       return;
     }
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, preferred_locale")
       .eq("id", user.id)
       .single();
 
-    setIsAdmin(profile?.role === "admin");
+    const typedProfile = profile as Profile | null;
+
+    setIsAdmin(typedProfile?.role === "admin");
+    setLocale(typedProfile?.preferred_locale || "ru");
     setLoadingAuth(false);
   }
 
@@ -56,6 +67,33 @@ export default function Navbar() {
     setMenuOpen(false);
   }
 
+  async function handleChangeLocale(nextLocale: "ru" | "en") {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setLocale(nextLocale);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        preferred_locale: nextLocale,
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setLocale(nextLocale);
+    setMenuOpen(false);
+    window.location.reload();
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut();
     setIsLoggedIn(false);
@@ -63,6 +101,34 @@ export default function Navbar() {
     setMenuOpen(false);
     router.push("/login");
   }
+
+  const languageSwitcher = (
+    <div className="flex items-center gap-1 rounded-lg border border-zinc-700 p-1">
+      <button
+        type="button"
+        onClick={() => handleChangeLocale("ru")}
+        className={`rounded-md px-2 py-1 text-xs font-bold transition ${
+          locale === "ru"
+            ? "bg-white text-zinc-950"
+            : "text-zinc-400 hover:text-white"
+        }`}
+      >
+        RU
+      </button>
+
+      <button
+        type="button"
+        onClick={() => handleChangeLocale("en")}
+        className={`rounded-md px-2 py-1 text-xs font-bold transition ${
+          locale === "en"
+            ? "bg-white text-zinc-950"
+            : "text-zinc-400 hover:text-white"
+        }`}
+      >
+        EN
+      </button>
+    </div>
+  );
 
   return (
     <nav className="border-b border-zinc-800 bg-zinc-950 text-white">
@@ -105,6 +171,8 @@ export default function Navbar() {
                   {t.nav.profile}
                 </Link>
 
+                {languageSwitcher}
+
                 <button
                   onClick={handleLogout}
                   className="rounded-lg border border-zinc-700 px-3 py-1.5 text-zinc-300 hover:border-zinc-500 hover:text-white"
@@ -140,7 +208,7 @@ export default function Navbar() {
                   onClick={closeMenu}
                   className="rounded-xl px-3 py-3 text-zinc-300 hover:bg-zinc-900 hover:text-white"
                 >
-                  Categories
+                  {t.nav.categories}
                 </Link>
 
                 <Link
@@ -148,7 +216,7 @@ export default function Navbar() {
                   onClick={closeMenu}
                   className="rounded-xl px-3 py-3 text-zinc-300 hover:bg-zinc-900 hover:text-white"
                 >
-                  Leaderboard
+                  {t.nav.leaderboard}
                 </Link>
 
                 {isAdmin && (
@@ -157,7 +225,7 @@ export default function Navbar() {
                     onClick={closeMenu}
                     className="rounded-xl px-3 py-3 text-yellow-300 hover:bg-zinc-900 hover:text-yellow-200"
                   >
-                    Admin
+                    {t.nav.admin}
                   </Link>
                 )}
 
@@ -166,14 +234,18 @@ export default function Navbar() {
                   onClick={closeMenu}
                   className="rounded-xl px-3 py-3 text-zinc-300 hover:bg-zinc-900 hover:text-white"
                 >
-                  Profile
+                  {t.nav.profile}
                 </Link>
+
+                <div className="px-3 py-2">
+                  {languageSwitcher}
+                </div>
 
                 <button
                   onClick={handleLogout}
                   className="rounded-xl border border-zinc-700 px-3 py-3 text-left text-zinc-300 hover:border-zinc-500 hover:text-white"
                 >
-                  Logout
+                  {t.nav.logout}
                 </button>
               </>
             ) : null}
@@ -185,7 +257,7 @@ export default function Navbar() {
                   onClick={closeMenu}
                   className="rounded-xl px-3 py-3 text-zinc-300 hover:bg-zinc-900 hover:text-white"
                 >
-                  Login
+                  {t.nav.login}
                 </Link>
 
                 <Link
@@ -193,7 +265,7 @@ export default function Navbar() {
                   onClick={closeMenu}
                   className="rounded-xl bg-white px-3 py-3 text-center font-semibold text-zinc-950 hover:bg-zinc-200"
                 >
-                  Register
+                  {t.nav.register}
                 </Link>
               </>
             ) : null}

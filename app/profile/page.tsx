@@ -45,7 +45,6 @@ export default function ProfilePage() {
   const [nickname, setNickname] = useState("");
   const [originalNickname, setOriginalNickname] = useState("");
   const [message, setMessage] = useState("");
-  const [selectedLocale, setSelectedLocale] = useState("ru");
   const [loading, setLoading] = useState(true);
 
   const t = getDictionary(profile?.preferred_locale || "ru");
@@ -113,7 +112,6 @@ export default function ProfilePage() {
       setProfile(profileData);
       setNickname(profileData.nickname);
       setOriginalNickname(profileData.nickname);
-      setSelectedLocale(profileData.preferred_locale || "ru");
 
       const { data: statsData, error: statsError } = await supabase
         .from("user_stats")
@@ -155,29 +153,6 @@ export default function ProfilePage() {
     loadProfile();
   }, []);
 
-  async function handleSaveLanguage() {
-    if (!userId || !profile) return;
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        preferred_locale: selectedLocale,
-      })
-      .eq("id", userId);
-
-    if (error) {
-      console.error(error);
-      setMessage(t.profile.languageSaveError);
-      return;
-    }
-
-    setProfile({
-      ...profile,
-      preferred_locale: selectedLocale,
-    });
-
-    setMessage(t.profile.languageSaved);
-  }
 
   async function handleSaveNickname() {
     if (!userId || !profile) return;
@@ -338,48 +313,6 @@ export default function ProfilePage() {
           )}
 
           {message && <p className="mt-3 text-sm text-zinc-400">{message}</p>}
-        </div>
-
-        <div className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
-          <label className="mb-2 block text-sm font-medium text-zinc-400">
-            {t.profile.language}
-          </label>
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-           
-          <div className="grid w-full grid-cols-2 gap-2 rounded-xl border border-zinc-700 bg-zinc-950 p-1">
-            <button
-              type="button"
-              onClick={() => setSelectedLocale("ru")}
-              className={`rounded-lg px-4 py-3 font-bold transition ${
-                selectedLocale === "ru"
-                  ? "bg-white text-zinc-950"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              {t.profile.russian}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSelectedLocale("en")}
-              className={`rounded-lg px-4 py-3 font-bold transition ${
-                selectedLocale === "en"
-                  ? "bg-white text-zinc-950"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              {t.profile.english}
-            </button>
-          </div>
-
-            <button
-              onClick={handleSaveLanguage}
-              className="rounded-xl bg-white px-5 py-3 font-bold text-zinc-950 transition hover:bg-zinc-200"
-            >
-              {t.common.save}
-            </button>
-          </div>
         </div>
 
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
