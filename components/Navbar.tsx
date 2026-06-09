@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
+import { getDictionary } from "../lib/i18n/getDictionary";
 
 export default function Navbar() {
   const router = useRouter();
+  const t = getDictionary("ru");
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -86,28 +88,28 @@ export default function Navbar() {
             {!loadingAuth && isLoggedIn ? (
               <>
                 <Link href="/categories" className="text-zinc-300 hover:text-white">
-                  Categories
+                  {t.nav.categories}
                 </Link>
 
                 <Link href="/leaderboard" className="text-zinc-300 hover:text-white">
-                  Leaderboard
+                  {t.nav.leaderboard}
                 </Link>
 
                 {isAdmin && (
                   <Link href="/admin" className="text-yellow-300 hover:text-yellow-200">
-                    Admin
+                    {t.nav.admin}
                   </Link>
                 )}
 
                 <Link href="/profile" className="text-zinc-300 hover:text-white">
-                  Profile
+                  {t.nav.profile}
                 </Link>
 
                 <button
                   onClick={handleLogout}
                   className="rounded-lg border border-zinc-700 px-3 py-1.5 text-zinc-300 hover:border-zinc-500 hover:text-white"
                 >
-                  Logout
+                  {t.nav.logout}
                 </button>
               </>
             ) : null}
@@ -115,14 +117,14 @@ export default function Navbar() {
             {!loadingAuth && !isLoggedIn ? (
               <>
                 <Link href="/login" className="text-zinc-300 hover:text-white">
-                  Login
+                  {t.nav.login}
                 </Link>
 
                 <Link
                   href="/register"
                   className="rounded-lg bg-white px-3 py-1.5 font-semibold text-zinc-950 hover:bg-zinc-200"
                 >
-                  Register
+                  {t.nav.register}
                 </Link>
               </>
             ) : null}

@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
+
 export default function LoginPage() {
   const router = useRouter();
+  
 
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [email, setEmail] = useState("");
@@ -30,7 +32,7 @@ export default function LoginPage() {
   }, [router]);
 
   async function handleLogin() {
-    setMessage("Signing in...");
+    setMessage("Входим...");
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -48,7 +50,7 @@ export default function LoginPage() {
   if (checkingAuth) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
-        Checking session...
+        Проверяем сессию...
       </main>
     );
   }
@@ -56,10 +58,10 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
       <section className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-900 p-8">
-        <h1 className="mb-2 text-3xl font-black">Login</h1>
+        <h1 className="mb-2 text-3xl font-black">Вход</h1>
 
         <p className="mb-6 text-zinc-400">
-          Sign in and continue your streak.
+          Войдите в аккаунт и продолжайте набирать стрик.
         </p>
 
         <input
@@ -72,7 +74,7 @@ export default function LoginPage() {
 
         <input
           type="password"
-          placeholder="Password"
+          placeholder="Пароль"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="mb-4 w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3 text-white outline-none focus:border-blue-400"
@@ -82,7 +84,7 @@ export default function LoginPage() {
           onClick={handleLogin}
           className="w-full rounded-xl bg-white px-4 py-3 font-bold text-zinc-950 transition hover:bg-zinc-200"
         >
-          Sign in
+          Войти
         </button>
 
         {message && (

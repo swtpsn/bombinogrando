@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { getDictionary } from "../../lib/i18n/getDictionary";
 
 type Category = {
   id: number;
@@ -15,6 +16,7 @@ type Category = {
 type Profile = {
   role: string;
   is_premium: boolean;
+  preferred_locale: string;
 };
 
 const categoryEmoji: Record<string, string> = {
@@ -35,6 +37,8 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState("");
 
+  const t = getDictionary(profile?.preferred_locale || "ru");
+
   const hasPremiumAccess =
     profile?.role === "admin" || profile?.is_premium === true;
 
@@ -51,7 +55,7 @@ export default function CategoriesPage() {
 
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("role, is_premium")
+        .select("role, is_premium, preferred_locale")
         .eq("id", user.id)
         .single();
 
@@ -81,7 +85,7 @@ export default function CategoriesPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
-        Loading categories...
+        {t.common.loading}
       </main>
     );
   }
@@ -89,7 +93,7 @@ export default function CategoriesPage() {
   if (errorText) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-red-400">
-        Error: {errorText}
+        Ошибка: {errorText}
       </main>
     );
   }
@@ -99,15 +103,15 @@ export default function CategoriesPage() {
       <div className="mx-auto max-w-5xl">
         <div className="mb-10">
           <p className="mb-2 text-sm font-medium uppercase tracking-widest text-zinc-500">
-            Choose your challenge
+            {t.categories.chooseChallenge}
           </p>
 
           <h1 className="text-4xl font-black tracking-tight md:text-5xl">
-            Categories
+            {t.categories.title}
           </h1>
 
           <p className="mt-3 max-w-2xl text-zinc-400">
-            Pick a topic, build your streak, and climb the leaderboard.
+            {t.categories.subtitle}
           </p>
         </div>
 
@@ -124,11 +128,11 @@ export default function CategoriesPage() {
 
                   {category.is_premium ? (
                     <span className="rounded-full border border-yellow-500/40 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-300">
-                      🔒 Premium
+                      🔒 {t.categories.premium}
                     </span>
                   ) : (
                     <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
-                      Free
+                      {t.categories.free}
                     </span>
                   )}
                 </div>
@@ -138,7 +142,9 @@ export default function CategoriesPage() {
                 </h2>
 
                 <p className="mt-2 text-sm text-zinc-400">
-                  {isLocked ? "Premium required" : "Start playing →"}
+                  {isLocked
+                    ? t.categories.premiumRequired
+                    : t.categories.startPlaying}
                 </p>
               </>
             );
@@ -166,14 +172,14 @@ export default function CategoriesPage() {
                     href={`/play/${category.slug}`}
                     className="rounded-xl border border-zinc-700 px-4 py-3 text-center text-sm font-bold text-zinc-200 hover:border-zinc-500"
                   >
-                    Classic
+                    {t.categories.classic}
                   </Link>
 
                   <Link
                     href={`/infinite/${category.slug}`}
                     className="rounded-xl bg-white px-4 py-3 text-center text-sm font-bold text-zinc-950 hover:bg-zinc-200"
                   >
-                    Infinite
+                    {t.categories.infinite}
                   </Link>
                 </div>
               </div>

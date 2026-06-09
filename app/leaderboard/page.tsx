@@ -61,13 +61,13 @@ export default function LeaderboardPage() {
 
   function getNickname(userId: string) {
     const profile = profiles.find((item) => item.id === userId);
-    return profile?.nickname || "Unknown player";
+    return profile?.nickname || "Неизвестный игрок";
   }
 
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
-        Loading leaderboard...
+        Загрузка рейтинга...
       </main>
     );
   }
@@ -77,15 +77,15 @@ export default function LeaderboardPage() {
       <section className="mx-auto max-w-4xl">
         <div className="mb-10">
           <p className="mb-2 text-sm font-medium uppercase tracking-widest text-zinc-500">
-            Global ranking
+            Общий рейтинг
           </p>
 
           <h1 className="text-4xl font-black tracking-tight md:text-5xl">
-            Leaderboard
+            Рейтинг
           </h1>
 
           <p className="mt-3 text-zinc-400">
-            Climb the ranking with your best streak.
+            Поднимайтесь выше за счёт лучшего стрика.
           </p>
         </div>
 
@@ -102,7 +102,7 @@ export default function LeaderboardPage() {
                   </p>
 
                   <p className="mt-1 text-sm text-zinc-400">
-                    Games played: {item.games_played}
+                    Сыграно игр: {item.games_played}
                   </p>
                 </div>
 
@@ -111,7 +111,7 @@ export default function LeaderboardPage() {
                     {item.best_streak}
                   </p>
                   <p className="text-sm text-zinc-400">
-                    Best streak
+                    Лучший стрик
                   </p>
                 </div>
               </div>
@@ -122,7 +122,7 @@ export default function LeaderboardPage() {
                     {item.total_correct}
                   </p>
                   <p className="text-sm text-zinc-400">
-                    Correct answers
+                    Правильные ответы
                   </p>
                 </div>
 
@@ -131,7 +131,7 @@ export default function LeaderboardPage() {
                     {item.total_wrong}
                   </p>
                   <p className="text-sm text-zinc-400">
-                    Wrong answers
+                    Ошибки
                   </p>
                 </div>
               </div>

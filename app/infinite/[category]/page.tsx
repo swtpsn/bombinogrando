@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
+import { getDictionary } from "../../../lib/i18n/getDictionary";
 
 type Option = {
   id: string;
@@ -24,6 +25,9 @@ export default function InfinitePage({
   params: Promise<{ category: string }>;
 }) {
   const router = useRouter();
+
+  const [locale, setLocale] = useState("ru");
+  const t = getDictionary(locale);
 
   const [categoryName, setCategoryName] = useState("");
   const [question, setQuestion] = useState<Question | null>(null);
@@ -69,11 +73,12 @@ export default function InfinitePage({
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(data.error || "Failed to start game.");
+        setMessage(data.error || "Не удалось начать игру.");
         setLoading(false);
         return;
       }
 
+      setLocale(data.locale || "ru");
       setCategoryName(data.category.name);
       setQuestion(data.question);
       setRunId(data.runId);
@@ -142,7 +147,7 @@ export default function InfinitePage({
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(data.error || "Failed to check answer.");
+        setMessage(data.error || "Не удалось проверить ответ.");
         setCheckingAnswer(false);
         return;
       }
@@ -152,7 +157,7 @@ export default function InfinitePage({
         setFinishType("lost");
         setCorrectAnswer(data.correctAnswer || "");
         setExplanation(data.explanation || "");
-        setMessage("Game over.");
+        setMessage(t.infinite.gameOver);
         setCheckingAnswer(false);
         return;
       }
@@ -169,7 +174,7 @@ export default function InfinitePage({
         setGameOver(true);
         setFinishType("completed");
         setExplanation(data.explanation || "");
-        setMessage(data.message || "No more questions.");
+        setMessage(data.message || "Вопросы закончились.");
         setCheckingAnswer(false);
         return;
       }
@@ -177,11 +182,11 @@ export default function InfinitePage({
       setQuestion(data.nextQuestion);
       setSelectedOptionId("");
       setExplanation(data.explanation || "");
-      setMessage("Correct!");
+      setMessage(t.infinite.correct);
       setCheckingAnswer(false);
     } catch (error) {
       console.error(error);
-      setMessage("Network error. Try again.");
+      setMessage("Ошибка сети. Попробуйте ещё раз.");
       setCheckingAnswer(false);
     }
   }
@@ -193,7 +198,7 @@ export default function InfinitePage({
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
-        Loading infinite mode...
+        {t.infinite.loading}
       </main>
     );
   }
@@ -202,17 +207,19 @@ export default function InfinitePage({
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
         <section className="max-w-xl rounded-3xl border border-zinc-800 bg-zinc-900 p-8 text-center">
-          <h1 className="mb-4 text-3xl font-black">Infinite Mode</h1>
+          <h1 className="mb-4 text-3xl font-black">
+            {t.infinite.modeName}
+          </h1>
 
           <p className="text-zinc-400">
-            {message || "No question found."}
+            {message || t.infinite.noQuestionFound}
           </p>
 
           <Link
             href="/categories"
             className="mt-6 inline-block rounded-xl bg-white px-5 py-3 font-bold text-zinc-950"
           >
-            Back to categories
+            {t.common.backToCategories}
           </Link>
         </section>
       </main>
@@ -226,20 +233,20 @@ export default function InfinitePage({
       <section className="mx-auto max-w-3xl">
         <div className="mb-8">
           <p className="mb-2 text-sm font-medium uppercase tracking-widest text-zinc-500">
-            Infinite Mode · {categoryName}
+            {t.infinite.modeName} · {categoryName}
           </p>
 
           <h1 className="text-4xl font-black tracking-tight">
-            Keep the streak alive
+            {t.infinite.title}
           </h1>
 
           <div className="mt-5 flex flex-wrap gap-3">
             <div className="rounded-full border border-orange-500/40 bg-orange-500/10 px-4 py-2 text-orange-300">
-              🔥 Streak: {streak}
+              🔥 {t.infinite.streak}: {streak}
             </div>
 
             <div className="rounded-full border border-yellow-500/40 bg-yellow-500/10 px-4 py-2 text-yellow-300">
-              🏆 Best this run: {bestStreak}
+              🏆 {t.infinite.bestThisRun}: {bestStreak}
             </div>
           </div>
         </div>
@@ -257,16 +264,18 @@ export default function InfinitePage({
             </div>
 
             <h2 className="mb-3 text-4xl font-black">
-              {completedCategory ? "Category completed!" : "Game Over"}
+              {completedCategory
+                ? t.infinite.categoryCompleted
+                : t.infinite.gameOver}
             </h2>
 
             <p className="text-xl text-zinc-300">
-              Final streak: {streak}
+              {t.infinite.finalStreak}: {streak}
             </p>
 
             {correctAnswer && (
               <p className="mt-4 text-zinc-300">
-                Correct answer:{" "}
+                {t.infinite.correctAnswer}:{" "}
                 <span className="font-bold text-white">
                   {correctAnswer}
                 </span>
@@ -290,14 +299,14 @@ export default function InfinitePage({
                 onClick={handleRestart}
                 className="rounded-xl bg-white px-5 py-3 font-bold text-zinc-950 hover:bg-zinc-200"
               >
-                Play again
+                {t.common.playAgain}
               </button>
 
               <Link
                 href="/categories"
                 className="rounded-xl border border-zinc-700 px-5 py-3 font-bold text-zinc-200 hover:border-zinc-500"
               >
-                Back to categories
+                {t.common.backToCategories}
               </Link>
             </div>
           </div>
@@ -333,7 +342,9 @@ export default function InfinitePage({
               disabled={!selectedOptionId || checkingAnswer}
               className="mt-6 w-full rounded-2xl bg-white px-5 py-4 font-bold text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
             >
-              {checkingAnswer ? "Checking..." : "Check answer"}
+              {checkingAnswer
+                ? t.infinite.checking
+                : t.infinite.checkAnswer}
             </button>
 
             {message && (

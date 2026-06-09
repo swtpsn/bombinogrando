@@ -37,15 +37,15 @@ export default function RegisterPage() {
     const errors: string[] = [];
 
     if (!cleanNickname) {
-      errors.push("Nickname is required.");
+      errors.push("Никнейм обязателен.");
     }
 
     if (!cleanEmail) {
-      errors.push("Email is required.");
+      errors.push("Email обязателен.");
     }
 
     if (!password) {
-      errors.push("Password is required.");
+      errors.push("Пароль обязателен.");
     }
 
     if (errors.length > 0) {
@@ -53,7 +53,7 @@ export default function RegisterPage() {
       return;
     }
 
-    setMessages(["Checking availability..."]);
+    setMessages(["Проверяем доступность..."]);
 
     const { data: existingProfiles, error: nicknameCheckError } =
       await supabase
@@ -68,10 +68,10 @@ export default function RegisterPage() {
     }
 
     if (existingProfiles && existingProfiles.length > 0) {
-      errors.push("This nickname is already taken.");
+      errors.push("Этот никнейм уже занят.");
     }
 
-    setMessages(["Creating account..."]);
+    setMessages(["Создаём аккаунт..."]);
 
     const { data, error } = await supabase.auth.signUp({
       email: cleanEmail,
@@ -85,7 +85,7 @@ export default function RegisterPage() {
     const createdUser = data.user;
 
     if (!createdUser || createdUser.identities?.length === 0) {
-      errors.push("This email is already registered.");
+      errors.push("Этот email уже зарегистрирован.");
     }
 
     if (errors.length > 0 || !createdUser) {
@@ -96,11 +96,12 @@ export default function RegisterPage() {
     const { error: profileError } = await supabase.from("profiles").insert({
       id: createdUser.id,
       nickname: cleanNickname,
+      preferred_locale: "ru",
     });
 
     if (profileError) {
       if (profileError.code === "23505") {
-        setMessages(["This nickname is already taken."]);
+        setMessages(["Этот никнейм уже занят."]);
         return;
       }
 
@@ -117,13 +118,13 @@ export default function RegisterPage() {
       return;
     }
 
-    setMessages(["Account created successfully. You can now log in."]);
+    setMessages(["Аккаунт создан. Теперь можно войти."]);
   }
 
   if (checkingAuth) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
-        Checking session...
+        Проверяем сессию...
       </main>
     );
   }
@@ -131,15 +132,15 @@ export default function RegisterPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
       <section className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-900 p-8">
-        <h1 className="mb-2 text-3xl font-black">Register</h1>
+        <h1 className="mb-2 text-3xl font-black">Регистрация</h1>
 
         <p className="mb-6 text-zinc-400">
-          Create an account to save your progress.
+          Создайте аккаунт, чтобы сохранять прогресс.
         </p>
 
         <input
           type="text"
-          placeholder="Nickname"
+          placeholder="Никнейм"
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
           className="mb-4 w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3 text-white outline-none focus:border-blue-400"
@@ -155,7 +156,7 @@ export default function RegisterPage() {
 
         <input
           type="password"
-          placeholder="Password"
+          placeholder="Пароль"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="mb-4 w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3 text-white outline-none focus:border-blue-400"
@@ -165,7 +166,7 @@ export default function RegisterPage() {
           onClick={handleRegister}
           className="w-full rounded-xl bg-white px-4 py-3 font-bold text-zinc-950 transition hover:bg-zinc-200"
         >
-          Create account
+          Создать аккаунт
         </button>
 
         {messages.length > 0 && (

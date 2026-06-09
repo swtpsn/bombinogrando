@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { getDictionary } from "../../lib/i18n/getDictionary";
 
 type UserStats = {
   total_correct: number;
@@ -15,6 +16,7 @@ type Profile = {
   role: string;
   is_premium: boolean;
   can_change_nickname: boolean;
+  preferred_locale: string;
 };
 
 type Category = {
@@ -43,7 +45,14 @@ export default function ProfilePage() {
   const [nickname, setNickname] = useState("");
   const [originalNickname, setOriginalNickname] = useState("");
   const [message, setMessage] = useState("");
+  const [selectedLocale, setSelectedLocale] = useState("ru");
   const [loading, setLoading] = useState(true);
+
+  const t = getDictionary(profile?.preferred_locale || "ru");
+  console.log("LOCALE", profile?.preferred_locale);
+  console.log("RUSSIAN", t.profile.russian);
+  console.log("ENGLISH", t.profile.english);
+  console.log("PROFILE", t.profile);
 
   const canEditNickname =
     profile?.role === "admin" ||
@@ -72,7 +81,7 @@ export default function ProfilePage() {
 
   function getCategoryName(categoryId: number) {
     const category = categories.find((item) => item.id === categoryId);
-    return category?.name || "Unknown category";
+    return category?.name || "Неизвестная категория";
   }
 
   useEffect(() => {
@@ -91,7 +100,7 @@ export default function ProfilePage() {
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("nickname, role, is_premium, can_change_nickname")
+        .select("nickname, role, is_premium, can_change_nickname, preferred_locale")
         .eq("id", user.id)
         .single();
 
@@ -104,6 +113,7 @@ export default function ProfilePage() {
       setProfile(profileData);
       setNickname(profileData.nickname);
       setOriginalNickname(profileData.nickname);
+      setSelectedLocale(profileData.preferred_locale || "ru");
 
       const { data: statsData, error: statsError } = await supabase
         .from("user_stats")
@@ -145,27 +155,51 @@ export default function ProfilePage() {
     loadProfile();
   }, []);
 
+  async function handleSaveLanguage() {
+    if (!userId || !profile) return;
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        preferred_locale: selectedLocale,
+      })
+      .eq("id", userId);
+
+    if (error) {
+      console.error(error);
+      setMessage(t.profile.languageSaveError);
+      return;
+    }
+
+    setProfile({
+      ...profile,
+      preferred_locale: selectedLocale,
+    });
+
+    setMessage(t.profile.languageSaved);
+  }
+
   async function handleSaveNickname() {
     if (!userId || !profile) return;
 
     if (!canEditNickname) {
-      setMessage("You do not have permission to change your nickname.");
+      setMessage("У вас нет прав на изменение никнейма.");
       return;
     }
 
     const cleanNickname = nickname.trim();
 
     if (!cleanNickname) {
-      setMessage("Nickname cannot be empty.");
+      setMessage("Никнейм не может быть пустым.");
       return;
     }
 
     if (cleanNickname.toLowerCase() === originalNickname.toLowerCase()) {
-      setMessage("Nickname is unchanged.");
+      setMessage("Никнейм не изменился.");
       return;
     }
 
-    setMessage("Checking nickname...");
+    setMessage("Проверяем никнейм...");
 
     const { data: existingProfiles, error: checkError } = await supabase
       .from("profiles")
@@ -180,11 +214,11 @@ export default function ProfilePage() {
     }
 
     if (existingProfiles && existingProfiles.length > 0) {
-      setMessage("This nickname is already taken.");
+      setMessage("Этот никнейм уже занят.");
       return;
     }
 
-    setMessage("Saving...");
+    setMessage("Сохраняем...");
 
     const { error } = await supabase
       .from("profiles")
@@ -198,11 +232,11 @@ export default function ProfilePage() {
       console.error(error);
 
       if (error.code === "23505") {
-        setMessage("This nickname is already taken.");
+        setMessage("Этот никнейм уже занят.");
         return;
       }
 
-      setMessage("Failed to save nickname.");
+      setMessage("Не удалось сохранить никнейм.");
       return;
     }
 
@@ -214,13 +248,13 @@ export default function ProfilePage() {
       can_change_nickname: false,
     });
 
-    setMessage("Nickname saved.");
+    setMessage("Никнейм сохранён.");
   }
 
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
-        Loading profile...
+        {t.common.loading}
       </main>
     );
   }
@@ -228,7 +262,7 @@ export default function ProfilePage() {
   if (!email) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
-        Not logged in.
+        Вы не вошли в аккаунт.
       </main>
     );
   }
@@ -236,7 +270,7 @@ export default function ProfilePage() {
   if (!stats || !profile) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
-        No profile data found.
+        Данные профиля не найдены.
       </main>
     );
   }
@@ -246,7 +280,7 @@ export default function ProfilePage() {
       <section className="mx-auto max-w-4xl">
         <div className="mb-8">
           <p className="mb-2 text-sm font-medium uppercase tracking-widest text-zinc-500">
-            Player profile
+            {t.profile.title}
           </p>
 
           <h1 className="text-4xl font-black tracking-tight">
@@ -257,7 +291,7 @@ export default function ProfilePage() {
 
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="rounded-full border border-zinc-700 px-3 py-1 text-sm text-zinc-300">
-              Role: {profile.role}
+              Роль: {profile.role}
             </span>
 
             {profile.is_premium && (
@@ -268,7 +302,7 @@ export default function ProfilePage() {
 
             {canEditNickname && (
               <span className="rounded-full border border-blue-500/40 bg-blue-500/10 px-3 py-1 text-sm text-blue-300">
-                Nickname change available
+                Можно изменить никнейм
               </span>
             )}
           </div>
@@ -276,7 +310,7 @@ export default function ProfilePage() {
 
         <div className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
           <label className="mb-2 block text-sm font-medium text-zinc-400">
-            Nickname
+            {t.profile.nickname}
           </label>
 
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -284,7 +318,7 @@ export default function ProfilePage() {
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               disabled={!canEditNickname}
-              placeholder="Enter nickname"
+              placeholder="Введите никнейм"
               className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
             />
 
@@ -293,78 +327,85 @@ export default function ProfilePage() {
               disabled={!canEditNickname}
               className="rounded-xl bg-white px-5 py-3 font-bold text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
             >
-              Save
+              {t.common.save}
             </button>
           </div>
 
           {!canEditNickname && (
             <p className="mt-3 text-sm text-zinc-500">
-              Nickname changes are locked. Admin, premium status, or a nickname-change permission is required.
+              Изменение никнейма заблокировано. Нужен статус администратора, премиум или отдельное разрешение.
             </p>
           )}
 
           {message && <p className="mt-3 text-sm text-zinc-400">{message}</p>}
         </div>
 
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-4xl font-black text-emerald-300">
-              {stats.total_correct}
-            </p>
-            <p className="mt-2 text-zinc-400">Correct answers</p>
+        <div className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
+          <label className="mb-2 block text-sm font-medium text-zinc-400">
+            {t.profile.language}
+          </label>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+           
+          <div className="grid w-full grid-cols-2 gap-2 rounded-xl border border-zinc-700 bg-zinc-950 p-1">
+            <button
+              type="button"
+              onClick={() => setSelectedLocale("ru")}
+              className={`rounded-lg px-4 py-3 font-bold transition ${
+                selectedLocale === "ru"
+                  ? "bg-white text-zinc-950"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              {t.profile.russian}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedLocale("en")}
+              className={`rounded-lg px-4 py-3 font-bold transition ${
+                selectedLocale === "en"
+                  ? "bg-white text-zinc-950"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              {t.profile.english}
+            </button>
           </div>
 
-          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-4xl font-black text-red-300">
-              {stats.total_wrong}
-            </p>
-            <p className="mt-2 text-zinc-400">Wrong answers</p>
-          </div>
-
-          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-4xl font-black text-yellow-300">
-              {stats.best_streak}
-            </p>
-            <p className="mt-2 text-zinc-400">Best streak</p>
-          </div>
-
-          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-4xl font-black text-blue-300">
-              {stats.games_played}
-            </p>
-            <p className="mt-2 text-zinc-400">Games played</p>
-          </div>
-
-          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-4xl font-black text-purple-300">
-              {totalAnswers}
-            </p>
-            <p className="mt-2 text-zinc-400">Total answers</p>
-          </div>
-
-          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-4xl font-black text-cyan-300">
-              {accuracy}%
-            </p>
-            <p className="mt-2 text-zinc-400">Accuracy</p>
+            <button
+              onClick={handleSaveLanguage}
+              className="rounded-xl bg-white px-5 py-3 font-bold text-zinc-950 transition hover:bg-zinc-200"
+            >
+              {t.common.save}
+            </button>
           </div>
         </div>
 
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard value={stats.total_correct} label={t.profile.correctAnswers} color="text-emerald-300" />
+          <StatCard value={stats.total_wrong} label={t.profile.wrongAnswers} color="text-red-300" />
+          <StatCard value={stats.best_streak} label={t.profile.bestStreak} color="text-yellow-300" />
+          <StatCard value={stats.games_played} label={t.profile.gamesPlayed} color="text-blue-300" />
+          <StatCard value={totalAnswers} label={t.profile.totalAnswers} color="text-purple-300" />
+          <StatCard value={`${accuracy}%`} label={t.profile.accuracy} color="text-cyan-300" />
+        </div>
+
         <div className="mb-8 rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
-          <h2 className="mb-4 text-2xl font-bold">Highlights</h2>
+          <h2 className="mb-4 text-2xl font-bold">{t.profile.highlights}</h2>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
-              <p className="text-sm text-zinc-500">Favorite category</p>
+              <p className="text-sm text-zinc-500">{t.profile.favoriteCategory}</p>
               <p className="mt-2 text-2xl font-black">
                 {favoriteCategory
                   ? getCategoryName(favoriteCategory.category_id)
-                  : "Not enough data"}
+                  : t.profile.notEnoughData}
               </p>
             </div>
 
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
-              <p className="text-sm text-zinc-500">Best category streak</p>
+              <p className="text-sm text-zinc-500">{t.profile.bestCategoryStreak}</p>
               <p className="mt-2 text-2xl font-black text-yellow-300">
                 {categoryStats.length > 0
                   ? Math.max(...categoryStats.map((item) => item.best_streak))
@@ -375,11 +416,11 @@ export default function ProfilePage() {
         </div>
 
         <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
-          <h2 className="mb-6 text-2xl font-bold">Category stats</h2>
+          <h2 className="mb-6 text-2xl font-bold">{t.profile.categoryStats}</h2>
 
           {categoryStats.length === 0 ? (
             <p className="text-zinc-400">
-              No category stats yet. Play Infinite Mode to collect data.
+              Пока нет статистики по категориям. Сыграйте в бесконечный режим, чтобы собрать данные.
             </p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -402,33 +443,10 @@ export default function ProfilePage() {
                     </h3>
 
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <p className="text-zinc-500">Correct</p>
-                        <p className="text-lg font-bold text-emerald-300">
-                          {item.correct_answers}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-zinc-500">Wrong</p>
-                        <p className="text-lg font-bold text-red-300">
-                          {item.wrong_answers}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-zinc-500">Best streak</p>
-                        <p className="text-lg font-bold text-yellow-300">
-                          {item.best_streak}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-zinc-500">Accuracy</p>
-                        <p className="text-lg font-bold text-cyan-300">
-                          {categoryAccuracy}%
-                        </p>
-                      </div>
+                      <MiniStat label="Верно" value={item.correct_answers} color="text-emerald-300" />
+                      <MiniStat label="Ошибки" value={item.wrong_answers} color="text-red-300" />
+                      <MiniStat label="Лучший стрик" value={item.best_streak} color="text-yellow-300" />
+                      <MiniStat label="Точность" value={`${categoryAccuracy}%`} color="text-cyan-300" />
                     </div>
                   </div>
                 );
@@ -438,5 +456,41 @@ export default function ProfilePage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function StatCard({
+  value,
+  label,
+  color,
+}: {
+  value: number | string;
+  label: string;
+  color: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
+      <p className={`text-4xl font-black ${color}`}>
+        {value}
+      </p>
+      <p className="mt-2 text-zinc-400">{label}</p>
+    </div>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number | string;
+  color: string;
+}) {
+  return (
+    <div>
+      <p className="text-zinc-500">{label}</p>
+      <p className={`text-lg font-bold ${color}`}>{value}</p>
+    </div>
   );
 }
