@@ -31,6 +31,8 @@ export default function InfinitePage({
 
   const [categoryName, setCategoryName] = useState("");
   const [question, setQuestion] = useState<Question | null>(null);
+  const [prefetchedQuestion, setPrefetchedQuestion] =
+    useState<Question | null>(null);
   const [runId, setRunId] = useState<number | null>(null);
 
   const [selectedOptionId, setSelectedOptionId] = useState("");
@@ -81,6 +83,7 @@ export default function InfinitePage({
       setLocale(data.locale || "ru");
       setCategoryName(data.category.name);
       setQuestion(data.question);
+      setPrefetchedQuestion(data.prefetchedQuestion || null);
       setRunId(data.runId);
       setStreak(data.streak || 0);
       setLoading(false);
@@ -179,7 +182,16 @@ export default function InfinitePage({
         return;
       }
 
-      setQuestion(data.nextQuestion);
+      if (prefetchedQuestion) {
+        setQuestion(prefetchedQuestion);
+      } else {
+        setQuestion(data.nextQuestion);
+      }
+
+      setPrefetchedQuestion(
+        data.prefetchedQuestion || null
+      );
+
       setSelectedOptionId("");
       setExplanation(data.explanation || "");
       setMessage(t.infinite.correct);

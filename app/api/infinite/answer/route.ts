@@ -5,21 +5,13 @@ import {
   pickAvailableQuestion,
   shuffleArray,
   updateRun,
+  type Level,
 } from "../../../../lib/infiniteGame";
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 import { updateCategoryStats } from "../../../../lib/categoryStats";
 
-type LevelData = {
-  question: string;
-  options: string[];
-  correct: string;
-};
-
-type Level = {
-  id: number;
+type AnswerLevel = Level & {
   category_id: number;
-  explanation: string | null;
-  data: LevelData;
 };
 
 async function updateUserStatsAfterCorrectAnswer(userId: string) {
@@ -81,6 +73,29 @@ async function updateUserStatsAfterRunFinished({
   }
 }
 
+async function getLevelById(levelId: number): Promise<AnswerLevel | null> {
+  const { data, error } = await supabaseAdmin
+    .from("levels_v2")
+    .select("id, category_id, explanation, data")
+    .eq("id", levelId)
+    .eq("is_active", true)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data as AnswerLevel;
+}
+
+function formatQuestion(levelId: number, localizedQuestion: Awaited<ReturnType<typeof getLocalizedQuestion>>) {
+  return {
+    id: levelId,
+    question: localizedQuestion.question,
+    options: shuffleArray(localizedQuestion.options),
+  };
+}
+
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
 
@@ -115,10 +130,7 @@ export async function POST(request: NextRequest) {
     const run = await getRun(Number(runId));
 
     if (run.user_id !== user.id) {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     if (run.is_finished) {
@@ -153,21 +165,14 @@ export async function POST(request: NextRequest) {
 
     const locale = profile.preferred_locale || "ru";
 
-    const { data: currentLevel, error: levelError } = await supabaseAdmin
-      .from("levels_v2")
-      .select("id, category_id, explanation, data")
-      .eq("id", run.current_question_id)
-      .eq("is_active", true)
-      .single();
+    const level = await getLevelById(Number(run.current_question_id));
 
-    if (levelError || !currentLevel) {
+    if (!level) {
       return NextResponse.json(
         { error: "Question not found" },
         { status: 404 }
       );
     }
-
-    const level = currentLevel as Level;
 
     const localizedQuestion = await getLocalizedQuestion({
       level,
@@ -191,7 +196,7 @@ export async function POST(request: NextRequest) {
 
       await updateCategoryStats({
         userId: user.id,
-        categoryId: level.category_id,
+        categoryId: Number(level.category_id),
         isCorrect: false,
         streak: run.streak,
       });
@@ -213,24 +218,36 @@ export async function POST(request: NextRequest) {
 
     await updateCategoryStats({
       userId: user.id,
-      categoryId: level.category_id,
+      categoryId: Number(level.category_id),
       isCorrect: true,
       streak: newStreak,
     });
 
     await updateUserStatsAfterCorrectAnswer(user.id);
 
-    const nextLevel = await pickAvailableQuestion({
+    let nextLevel: AnswerLevel | null = null;
+
+    if (run.next_question_id) {
+      nextLevel = await getLevelById(Number(run.next_question_id));
+    }
+
+    if (!nextLevel) {
+      const pickedLevel = await pickAvailableQuestion({
       userId: user.id,
       categoryId: run.category_id,
       excludeLevelId: level.id,
       allowQuestionRepeats,
+      markAsSeen: false,
     });
+
+    nextLevel = pickedLevel as AnswerLevel | null;
+    }
 
     if (!nextLevel) {
       await updateRun(Number(runId), {
         streak: newStreak,
         is_finished: true,
+        next_question_id: null,
         updated_at: new Date().toISOString(),
       });
 
@@ -249,14 +266,39 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    await supabaseAdmin
+      .from("user_seen_questions")
+      .upsert({
+        user_id: user.id,
+        level_id: nextLevel.id,
+      });
+
+    const pickedPrefetchedLevel = await pickAvailableQuestion({
+      userId: user.id,
+      categoryId: run.category_id,
+      excludeLevelId: nextLevel.id,
+      allowQuestionRepeats,
+      markAsSeen: false,
+    });
+
+    const prefetchedLevel = pickedPrefetchedLevel as AnswerLevel | null;
+
     const localizedNextQuestion = await getLocalizedQuestion({
       level: nextLevel,
       locale,
     });
 
+    const localizedPrefetchedQuestion = prefetchedLevel
+      ? await getLocalizedQuestion({
+          level: prefetchedLevel,
+          locale,
+        })
+      : null;
+
     await updateRun(Number(runId), {
       streak: newStreak,
       current_question_id: nextLevel.id,
+      next_question_id: prefetchedLevel?.id || null,
       updated_at: new Date().toISOString(),
     });
 
@@ -265,11 +307,11 @@ export async function POST(request: NextRequest) {
       gameOver: false,
       explanation: localizedQuestion.explanation,
       streak: newStreak,
-      nextQuestion: {
-        id: localizedNextQuestion.levelId,
-        question: localizedNextQuestion.question,
-        options: shuffleArray(localizedNextQuestion.options),
-      },
+      nextQuestion: formatQuestion(nextLevel.id, localizedNextQuestion),
+      prefetchedQuestion:
+        prefetchedLevel && localizedPrefetchedQuestion
+          ? formatQuestion(prefetchedLevel.id, localizedPrefetchedQuestion)
+          : null,
     });
   } catch (error) {
     const message =

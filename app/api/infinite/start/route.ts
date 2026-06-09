@@ -96,6 +96,21 @@ export async function POST(request: NextRequest) {
       locale,
     });
 
+    const prefetchedLevel = await pickAvailableQuestion({
+      userId: user.id,
+      categoryId: category.id,
+      excludeLevelId: selectedLevel.id,
+      allowQuestionRepeats,
+      markAsSeen: false,
+    });
+    
+    const localizedPrefetchedQuestion = prefetchedLevel
+      ? await getLocalizedQuestion({
+          level: prefetchedLevel,
+          locale,
+        })
+      : null;
+
     const { data: run, error: runError } = await supabaseAdmin
       .from("game_runs")
       .insert({
@@ -104,6 +119,7 @@ export async function POST(request: NextRequest) {
         current_question_id: selectedLevel.id,
         streak: 0,
         is_finished: false,
+        next_question_id: prefetchedLevel?.id || null,
       })
       .select("id")
       .single();
@@ -128,6 +144,13 @@ export async function POST(request: NextRequest) {
         question: localizedQuestion.question,
         options: shuffleArray(localizedQuestion.options),
       },
+      prefetchedQuestion: localizedPrefetchedQuestion
+        ? {
+            id: localizedPrefetchedQuestion.levelId,
+            question: localizedPrefetchedQuestion.question,
+            options: shuffleArray(localizedPrefetchedQuestion.options),
+          }
+        : null,
       streak: 0,
       repeatsAllowed: allowQuestionRepeats,
     });

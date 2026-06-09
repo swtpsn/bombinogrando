@@ -137,11 +137,13 @@ export async function pickAvailableQuestion({
   categoryId,
   excludeLevelId,
   allowQuestionRepeats,
+  markAsSeen = true,
 }: {
   userId: string;
   categoryId: number;
   excludeLevelId?: number;
   allowQuestionRepeats: boolean;
+  markAsSeen?: boolean;
 }) {
   let query = supabaseAdmin
     .from("levels_v2")
@@ -175,7 +177,9 @@ export async function pickAvailableQuestion({
 
   const selectedLevel = getRandomItem(levels);
 
-  await markQuestionAsSeen(userId, selectedLevel.id);
+  if (markAsSeen) {
+    await markQuestionAsSeen(userId, selectedLevel.id);
+  }
 
   return selectedLevel;
 }
